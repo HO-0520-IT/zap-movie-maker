@@ -1,6 +1,7 @@
 from moviepy.editor import *
 import os
 import moviepy
+from moviepy.config import change_settings
 from webbrowser import get
 import requests
 import json
@@ -108,11 +109,33 @@ def main_visual_resize_ratio(width, height):
     bg_height = bottom_y - top_y
     height_ratio = bg_height / height
     width_ratio = bg_width / width
-    return width_ratio if width_ratio > height_ratio else height_ratio
+    return width_ratio if width_ratio < height_ratio else height_ratio
+
+def main_visual_x_center_offset(width, height):
+    """
+        メインビジュアルに表示する動画の中心位置のオフセットを取得する
+    """
+
+    top_x = CONFIG["movie"]["background"]["main_vision_left_top_x"]
+    bottom_x = CONFIG["movie"]["background"]["main_vision_right_bottom_x"]
+
+    bg_width = bottom_x - top_x
+    return int((bg_width - width * main_visual_resize_ratio(width, height)) / 2)
+
+def main_visual_y_center_offset(width, height):
+    """
+        メインビジュアルに表示する動画の中心位置のオフセットを取得する
+    """
+
+    top_y = CONFIG["movie"]["background"]["main_vision_left_top_y"]
+    bottom_y = CONFIG["movie"]["background"]["main_vision_right_bottom_y"]
+
+    bg_height = bottom_y - top_y
+    return int((bg_height - height * main_visual_resize_ratio(width, height)) / 2)
 
 def create_main_visual_clip(clips, current_duration, movie_filepath):
     """
-        メインビジュアルにに使用するクリップを作成する
+        メインビジュアルに使用するクリップを作成する
     """
 
     # この動画の前に再生している動画の再生時間を、この動画を再生するまでに伸ばす
@@ -130,8 +153,8 @@ def create_main_visual_clip(clips, current_duration, movie_filepath):
         main_visual_clip = VideoFileClip(movie_filepath).set_start(current_duration).set_duration(1)
     
     # メインビジュアルの表示位置(左端)
-    x = CONFIG["movie"]["background"]["main_vision_left_top_x"]
-    y = CONFIG["movie"]["background"]["main_vision_left_top_y"]
+    x = CONFIG["movie"]["background"]["main_vision_left_top_x"] + main_visual_x_center_offset(main_visual_clip.w, main_visual_clip.h)
+    y = CONFIG["movie"]["background"]["main_vision_left_top_y"] + main_visual_y_center_offset(main_visual_clip.w, main_visual_clip.h)
     main_visual_potision = (x, y)
     main_visual_clip = main_visual_clip.set_position(main_visual_potision)
 
@@ -189,19 +212,49 @@ def create_text_clip(text, current_duration, has_audio, ruby):
     # Windowsの場合バックスラッシュでファイルパスが切られているとフォントを読み込めないので置換する
     font_path = get_path(CONFIG["movie"]["text"]["font_normal"]).replace("\\", "/")
 
-    txtclip = TextClip(
-        f"{text}",
-        method="label",
-        size=(2000, 30),
-        align="West",
-        fontsize=float(CONFIG["movie"]["text"]["font_size"]),
-        font=font_path,
-        color="white",
-    )
+    try:
+        CONFIG["movie"]["text"]["align"] == "center"
+        try:
+            width = CONFIG["movie"]["text"]["right_bottom_x"] - CONFIG["movie"]["text"]["left_top_x"]
+            height = CONFIG["movie"]["text"]["right_bottom_y"] - CONFIG["movie"]["text"]["left_top_y"]
+            txtclip = TextClip(
+                f"{text}",
+                method="caption",
+                size=(width, height),
+                align="center",
+                fontsize=float(CONFIG["movie"]["text"]["font_size"]),
+                font=font_path,
+                color=CONFIG["movie"]["text"]["color"],
+            )
+        except:
+            txtclip = TextClip(
+                f"{text}",
+                method="label",
+                # size=(2000, 100),
+                # align="West",
+                fontsize=float(CONFIG["movie"]["text"]["font_size"]),
+                font=font_path,
+                color=CONFIG["movie"]["text"]["color"],
+            )
+    except:
+        txtclip = TextClip(
+            f"{text}",
+            method="label",
+            # size=(2000, 100),
+            # align="West",
+            fontsize=float(CONFIG["movie"]["text"]["font_size"]),
+            font=font_path,
+            color=CONFIG["movie"]["text"]["color"],
+        )
+
 
     # テロップの表示位置
-    x = CONFIG["movie"]["text"]["x"]
-    y = CONFIG["movie"]["text"]["y"]
+    try:
+        x = CONFIG["movie"]["text"]["left_top_x"]
+        y = CONFIG["movie"]["text"]["left_top_y"]
+    except:
+        x = CONFIG["movie"]["text"]["x"]
+        y = CONFIG["movie"]["text"]["y"]
     text_position = (x, y)
 
     txtclip = txtclip.set_duration(float(audioclip.duration)).set_position(text_position)
@@ -364,6 +417,90 @@ def gen_movie():
     global CONFIG
     CONFIG = load_conf(get_path(f"./config.yml"))
 
+    # ffmpegのパスを設定
+    change_settings({"FFMPEG_BINARY": CONFIG["ffmpeg_path"]})
+
+    """
+    出力動画のサイズに合わせて、キャンバスのサイズで指定したものを拡縮させる
+    拡縮させる数値は、backgroundのmain_vision_left_top_x、main_vision_left_top_y、main_vision_right_bottom_x、main_vision_right_bottom_y、
+    および、characterのx、y、resize、および、textのfont_size、x、y、left_top_x、left_top_y、right_bottom_x、right_bottom_yである。
+    それぞれを、出力動画のサイズに合わせて拡縮させる。
+    """
+    CONFIG["movie"]["background"]["main_vision_left_top_x"] = int(
+        CONFIG["movie"]["background"]["main_vision_left_top_x"]
+        * CONFIG["movie"]["width"]
+        / CONFIG["movie"]["canvas_width"]
+    )
+    CONFIG["movie"]["background"]["main_vision_left_top_y"] = int(
+        CONFIG["movie"]["background"]["main_vision_left_top_y"]
+        * CONFIG["movie"]["height"]
+        / CONFIG["movie"]["canvas_height"]
+    )
+    CONFIG["movie"]["background"]["main_vision_right_bottom_x"] = int(
+        CONFIG["movie"]["background"]["main_vision_right_bottom_x"]
+        * CONFIG["movie"]["width"]
+        / CONFIG["movie"]["canvas_width"]
+    )
+    CONFIG["movie"]["background"]["main_vision_right_bottom_y"] = int(
+        CONFIG["movie"]["background"]["main_vision_right_bottom_y"]
+        * CONFIG["movie"]["height"]
+        / CONFIG["movie"]["canvas_height"]
+    )
+    CONFIG["movie"]["character"]["x"] = int(
+        CONFIG["movie"]["character"]["x"]
+        * CONFIG["movie"]["width"]
+        / CONFIG["movie"]["canvas_width"]
+    )
+    CONFIG["movie"]["character"]["y"] = int(
+        CONFIG["movie"]["character"]["y"]
+        * CONFIG["movie"]["height"]
+        / CONFIG["movie"]["canvas_height"]
+    )
+    CONFIG["movie"]["character"]["resize"] = float(
+        CONFIG["movie"]["character"]["resize"]
+        * CONFIG["movie"]["width"]
+        / CONFIG["movie"]["canvas_width"]
+    )
+    CONFIG["movie"]["text"]["font_size"] = int(
+        CONFIG["movie"]["text"]["font_size"]
+        * CONFIG["movie"]["height"]
+        / CONFIG["movie"]["canvas_height"]
+    )
+    try :
+        CONFIG["movie"]["text"]["left_top_x"] = int(
+            CONFIG["movie"]["text"]["left_top_x"]
+            * CONFIG["movie"]["width"]
+            / CONFIG["movie"]["canvas_width"]
+        )
+        CONFIG["movie"]["text"]["right_bottom_x"] = int(
+            CONFIG["movie"]["text"]["right_bottom_x"]
+            * CONFIG["movie"]["width"]
+            / CONFIG["movie"]["canvas_width"]
+        )
+    except:
+        CONFIG["movie"]["text"]["x"] = int(
+            CONFIG["movie"]["text"]["x"]
+            * CONFIG["movie"]["width"]
+            / CONFIG["movie"]["canvas_width"]
+        )
+    try:
+        CONFIG["movie"]["text"]["left_top_y"] = int(
+            CONFIG["movie"]["text"]["left_top_y"]
+            * CONFIG["movie"]["height"]
+            / CONFIG["movie"]["canvas_height"]
+        )
+        CONFIG["movie"]["text"]["right_bottom_y"] = int(
+            CONFIG["movie"]["text"]["right_bottom_y"]
+            * CONFIG["movie"]["height"]
+            / CONFIG["movie"]["canvas_height"]
+        )
+    except:
+        CONFIG["movie"]["text"]["y"] = int(
+            CONFIG["movie"]["text"]["y"]
+            * CONFIG["movie"]["height"]
+            / CONFIG["movie"]["canvas_height"]
+        )
+
     scripts = load_script(get_path(f"./script.csv"))
 
     # 動画の長さや、各種クリップ
@@ -432,6 +569,11 @@ def gen_movie():
         .fx(vfx.mask_color, color=[0, 255, 0], thr=100, s=5)
         .set_duration(total_duration)
     )
+    # 背景画像を出力動画のサイズ、及びキャンバスのサイズに合わせて拡縮
+    if ((CONFIG["movie"]["width"] != background_clip.w) or (CONFIG["movie"]["height"] != background_clip.h)):
+        background_clip = background_clip.resize(
+            width=CONFIG["movie"]["width"], height=CONFIG["movie"]["height"]
+        )
     output_layers.append(background_clip)
 
     # テロップクリップがあれば出力レイヤに追加
@@ -474,8 +616,7 @@ def gen_movie():
         output_end_time = CONFIG["preview"]["end"]
 
     # 各種クリップを1つのクリップにまとめて
-    # TODO: 動画のサイズを変更できるようにする
-    final = CompositeVideoClip(output_layers, size=(1280, 720))
+    final = CompositeVideoClip(output_layers, size=(CONFIG["movie"]["width"], CONFIG["movie"]["height"]))
 
     # 指定した範囲の動画を書き出す
     final = final.subclip(output_start_time, output_end_time)

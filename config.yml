@@ -6,41 +6,59 @@ preview:
   # プレビューとして　切り出しを終了する時間
   end: 1.2
 
+# ffmpegのパス
+ffmpeg_path: ffmpeg
 # NVIDIAのGPUが搭載されていれば対応したエンコーダを使うと出力が速くなります
-hasNvidiaGpu: False
+hasNvidiaGpu: false
 # 並列実行させる数。(だいたいの場合CPUのコア数を指定)
-numOfThread: null
+numOfThread: 32
 # 動画設定
 movie:
   additional_time: 0
   # 出力ファイル名
   output_filename: テスト動画.mp4
 
+  # 出力動画のサイズ
+  width: 1920
+  height: 1080
+
+  # 動画のキャンバスサイズ
+  canvas_width: 1920
+  canvas_height: 1080
+
   # 背景画像の設定
   background:
     # 背景画像のパス
-    image_path: ./resource/bg/default_bg.png
+    image_path: ./resource/bg/background.png
     # メイン動画を表示する範囲(左斜め上)
-    main_vision_left_top_x: 37
-    main_vision_left_top_y: 20
+    main_vision_left_top_x: 0
+    main_vision_left_top_y: 0
     # メイン動画を表示する範囲(右斜め下)
-    main_vision_right_bottom_x: 934
-    main_vision_right_bottom_y: 544
+    main_vision_right_bottom_x: 1280
+    main_vision_right_bottom_y: 720
 
   # キャラクタに関する設定
   # TODO: これはcsvで指定するようにする
   character:
     # キャラクタの描画位置(左端)
-    x: 1000
-    y: 320
+    x: 1444
+    y: 97
     # キャラクタのサイズ
-    resize: 0.3
+    resize: 0.7
 
   text:
     # Linux等の場合は別途日本語が使用できるフォントを指定してください
     # ex. https://fonts.google.com/noto/specimen/Noto+Sans+JP
     # font_normal: ./resource/fonts/Noto_Sans_JP/NotoSansJP-Bold.otf
     font_normal: C:\Windows\Fonts\meiryo.ttc
-    font_size: 25
+    font_size: 50
     x: 22
     y: 618
+
+    left_top_x: 0
+    left_top_y: 720
+    right_bottom_x: 1920
+    right_bottom_y: 1080
+    align: center
+
+    color: "#ffffff"
